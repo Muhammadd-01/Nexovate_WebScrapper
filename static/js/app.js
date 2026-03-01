@@ -43,8 +43,8 @@ function setupEventListeners() {
     });
 
     // Export buttons
-    document.getElementById('exportAll').addEventListener('click', exportAll);
-    document.getElementById('exportFiltered').addEventListener('click', exportFiltered);
+    document.getElementById('exportAll').addEventListener('click', () => exportSpecialized('all'));
+    document.getElementById('exportHealth').addEventListener('click', () => exportSpecialized('health'));
 
     // Clear data
     document.getElementById('clearData').addEventListener('click', clearData);
@@ -589,17 +589,37 @@ function renderDetailSocials(socials) {
 // ============================================
 // EXPORT
 // ============================================
-function exportAll() {
-    window.location.href = '/api/businesses/csv';
-}
-
-function exportFiltered() {
+function exportSpecialized(format) {
     const params = new URLSearchParams();
+
+    // Always include current filters
+    const currentKeyword = document.getElementById('keyword').value.trim();
+    const currentCity = document.getElementById('city').value.trim();
+    const currentCountry = document.getElementById('country').value.trim();
+
+    if (currentKeyword) params.set('keyword', currentKeyword);
+    if (currentCity) params.set('city', currentCity);
+    if (currentCountry) params.set('country', currentCountry);
+
     if (activeFilters.has_website) params.set('has_website', activeFilters.has_website);
     if (activeFilters.has_email) params.set('has_email', activeFilters.has_email);
     if (activeFilters.min_opportunity > 0) params.set('min_opportunity', activeFilters.min_opportunity);
     if (activeFilters.max_performance < 100) params.set('max_performance', activeFilters.max_performance);
-    window.location.href = '/api/businesses/csv?' + params.toString();
+
+    if (format === 'health') {
+        window.location.href = '/api/businesses/pdf?' + params.toString();
+    } else {
+        params.set('format', format);
+        window.location.href = '/api/businesses/csv?' + params.toString();
+    }
+}
+
+function exportAll() {
+    exportSpecialized('all');
+}
+
+function exportFiltered() {
+    exportSpecialized('all');
 }
 
 // ============================================
