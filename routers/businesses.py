@@ -1,0 +1,173 @@
+"""Businesses router – query, filter, and export business data.
+
+GET /api/businesses – filtered JSON results
+GET /api/businesses/csv – CSV download
+GET /api/businesses/{id} – single business detail
+"""
+
+import csv
+import io
+import logging
+from fastapi import APIRouter, Query
+from fastapi.responses import StreamingResponse, JSONResponse
+from bson import ObjectId
+from database import get_database
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api", tags=["businesses"])
+
+
+@router.get("/businesses")
+async def list_businesses(
+    city: str = Query(default="", description="Filter by city"),
+    country: str = Query(default="", description="Filter by country"),
+    keyword: str = Query(default="", description="Filter by keyword"),
+    has_website: str = Query(default="", description="true/false"),
+    has_email: str = Query(default="", description="true/false"),
+    min_opportunity: int = Query(default=0, description="Min opportunity score"),
+    max_performance: int = Query(default=100, description="Max performance score"),
+    sort_by: str = Query(default="opportunity_score", description="Sort field"),
+    sort_order: str = Query(default="desc", description="asc or desc"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    """List businesses with optional filters."""
+    try:
+        db = get_database()
+        collection = db.businesses
+
+        query = _build_query(city, country, keyword, has_website, has_email, min_opportunity, max_performance)
+        sort_dir = -1 if sort_order == "desc" else 1
+
+        cursor = (
+            collection.find(query, {"_id": 0})
+            .sort(sort_by, sort_dir)
+            .skip(skip)
+            .limit(limit)
+        )
+
+        businesses = await cursor.to_list(length=limit)
+
+        # Get total count for pagination
+        total = await collection.count_documents(query)
+        logger.info(f"Fetched {len(businesses)}/{total} businesses from DB (Query: {query})")
+
+        return {"businesses": businesses, "total": total}
+    except Exception as e:
+        logger.warning(f"Failed to fetch businesses (MongoDB may not be configured): {e}")
+        return {"businesses": [], "total": 0}
+
+
+@router.get("/businesses/csv")
+async def export_csv(
+    city: str = Query(default=""),
+    country: str = Query(default=""),
+    keyword: str = Query(default=""),
+    has_website: str = Query(default=""),
+    has_email: str = Query(default=""),
+    min_opportunity: int = Query(default=0),
+    max_performance: int = Query(default=100),
+):
+    """Export filtered businesses as CSV."""
+    db = get_database()
+    collection = db.businesses
+
+    query = _build_query(city, country, keyword, has_website, has_email, min_opportunity, max_performance)
+    cursor = collection.find(query, {"_id": 0}).sort("opportunity_score", -1)
+    businesses = await cursor.to_list(length=1000)
+
+    # Build CSV
+    output = io.StringIO()
+    fieldnames = [
+        "name", "address", "phone", "website", "email",
+        "instagram", "facebook", "linkedin", "twitter", "youtube", "tiktok",
+        "has_website", "performance_score", "seo_score",
+        "accessibility_score", "best_practices_score",
+        "load_time", "detected_cms", "opportunity_score",
+        "rating", "user_ratings_total",
+        "https_enabled", "has_viewport", "has_meta_description",
+        "pitch_summary", "city", "country", "keyword",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+
+    for biz in businesses:
+        row = {**biz}
+        # Flatten socials
+        socials = biz.get("socials", {})
+        if isinstance(socials, dict):
+            row["instagram"] = socials.get("instagram", "")
+            row["facebook"] = socials.get("facebook", "")
+            row["linkedin"] = socials.get("linkedin", "")
+            row["twitter"] = socials.get("twitter", "")
+            row["youtube"] = socials.get("youtube", "")
+            row["tiktok"] = socials.get("tiktok", "")
+
+        # Flatten health
+        health = biz.get("health", {})
+        if isinstance(health, dict):
+            row["https_enabled"] = health.get("https_enabled", "")
+            row["has_viewport"] = health.get("has_viewport", "")
+            row["has_meta_description"] = health.get("has_meta_description", "")
+
+        writer.writerow(row)
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=businesses_export.csv"},
+    )
+
+
+@router.get("/businesses/{place_id}")
+async def get_business(place_id: str):
+    """Get a single business by place_id."""
+    db = get_database()
+    collection = db.businesses
+    biz = await collection.find_one({"place_id": place_id}, {"_id": 0})
+    if not biz:
+        return JSONResponse(status_code=404, content={"error": "Business not found"})
+    return biz
+
+
+@router.delete("/businesses")
+async def clear_businesses():
+    """Clear all businesses from the database."""
+    db = get_database()
+    result = await db.businesses.delete_many({})
+    return {"deleted": result.deleted_count}
+
+
+def _build_query(
+    city: str, country: str, keyword: str,
+    has_website: str, has_email: str,
+    min_opportunity: int, max_performance: int,
+) -> dict:
+    """Build MongoDB filter query from parameters."""
+    query: dict = {}
+
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if country:
+        query["country"] = {"$regex": country, "$options": "i"}
+    if keyword:
+        query["keyword"] = {"$regex": keyword, "$options": "i"}
+
+    if has_website == "true":
+        query["has_website"] = True
+    elif has_website == "false":
+        query["has_website"] = False
+
+    if has_email == "true":
+        query["email"] = {"$ne": ""}
+    elif has_email == "false":
+        query["email"] = ""
+
+    if min_opportunity > 0:
+        query["opportunity_score"] = {"$gte": min_opportunity}
+
+    if max_performance < 100:
+        query["performance_score"] = {"$lte": max_performance}
+
+    return query
