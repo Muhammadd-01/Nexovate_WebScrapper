@@ -21,6 +21,7 @@ from services.health_analyzer import analyze_health
 from services.pagespeed import fetch_pagespeed
 from services.scoring import calculate_opportunity_score
 from services.pitch_generator import generate_pitch
+from services.service_detector import detect_services
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["search"])
@@ -98,6 +99,16 @@ async def search_businesses(req: SearchRequest):
 
                 # Generate pitch summary
                 biz["pitch_summary"] = generate_pitch(biz)
+
+                # Detect recommended services (NEW)
+                try:
+                    service_data = detect_services(biz)
+                    biz.update(service_data)
+                except Exception as e:
+                    logger.error(f"Service detection error for {biz['name']}: {e}")
+                    biz.setdefault("recommended_services", [])
+                    biz.setdefault("primary_pitch", "")
+                    biz.setdefault("service_pitch_summary", "")
 
                 # Set timestamp
                 biz["created_at"] = datetime.utcnow()

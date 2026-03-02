@@ -1,7 +1,7 @@
 """Pydantic models for request/response and MongoDB documents."""
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
@@ -34,10 +34,30 @@ class HealthAnalysis(BaseModel):
     has_h1: bool = False
     has_favicon: bool = False
     broken_links_count: int = 0
+    internal_links_count: int = 0
     images_total: int = 0
     images_with_alt: int = 0
     detected_cms: str = ""
     tech_stack: list[str] = []
+    # Social / Marketing
+    has_open_graph: bool = False
+    has_twitter_card: bool = False
+    has_schema_markup: bool = False
+    social_links_count: int = 0
+    has_analytics: bool = False
+    has_live_chat: bool = False
+    # Content & Features
+    has_ecommerce: bool = False
+    has_blog: bool = False
+    has_app_links: bool = False
+    has_newsletter: bool = False
+    has_contact_form: bool = False
+    has_video_embeds: bool = False
+    has_mixed_content: bool = False
+    # Content quality
+    heading_count_h2: int = 0
+    heading_count_h3: int = 0
+    word_count: int = 0
 
 
 class BusinessDocument(BaseModel):
@@ -62,6 +82,10 @@ class BusinessDocument(BaseModel):
     detected_cms: str = ""
     opportunity_score: int = 0
     pitch_summary: str = ""
+    # Service Opportunity Detection
+    recommended_services: List[Dict[str, Any]] = []
+    primary_pitch: str = ""
+    service_pitch_summary: str = ""
     keyword: str = ""
     city: str = ""
     country: str = ""

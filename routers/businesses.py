@@ -29,6 +29,8 @@ async def list_businesses(
     has_email: str = Query(default="", description="true/false"),
     min_opportunity: int = Query(default=0, description="Min opportunity score"),
     max_performance: int = Query(default=100, description="Max performance score"),
+    service_filter: str = Query(default="", description="Filter by primary_pitch service"),
+    min_confidence: int = Query(default=0, description="Minimum top service confidence score"),
     sort_by: str = Query(default="opportunity_score", description="Sort field"),
     sort_order: str = Query(default="desc", description="asc or desc"),
     skip: int = Query(default=0, ge=0),
@@ -40,6 +42,13 @@ async def list_businesses(
         collection = db.businesses
 
         query = _build_query(city, country, keyword, has_website, has_email, min_opportunity, max_performance)
+
+        # Service filter
+        if service_filter:
+            query["primary_pitch"] = service_filter
+        if min_confidence > 0:
+            query["recommended_services.0.confidence_score"] = {"$gte": min_confidence}
+
         sort_dir = -1 if sort_order == "desc" else 1
 
         cursor = (
@@ -86,6 +95,13 @@ async def get_suggestions():
     except Exception as e:
         logger.error(f"Failed to fetch suggestions: {e}")
         return {"cities": [], "countries": [], "keywords": []}
+
+
+@router.get("/services")
+async def list_services():
+    """Get the list of all 11 Nexovate services for filter dropdowns."""
+    from services.service_detector import ALL_SERVICES
+    return {"services": ALL_SERVICES}
 
 
 @router.get("/businesses/csv")
@@ -137,7 +153,8 @@ async def export_csv(
             "load_time", "detected_cms", "opportunity_score",
             "rating", "user_ratings_total",
             "https_enabled", "has_viewport", "has_meta_description",
-            "pitch_summary", "city", "country", "keyword",
+            "pitch_summary", "primary_pitch", "service_pitch_summary",
+            "city", "country", "keyword",
         ]
         filename = "businesses_export_full.csv"
 
@@ -182,17 +199,19 @@ async def export_csv(
 
         writer.writerow(row)
 
-    # Get CSV content and add UTF-8 BOM for Excel/Windows compatibility
+    # Get CSV content, add UTF-8 BOM for Excel compatibility, encode as bytes
     csv_content = output.getvalue()
-    bom_content = "\ufeff" + csv_content
-    
+    content_bytes = ("\ufeff" + csv_content).encode("utf-8")
+
     filename_encoded = quote(filename)
     return Response(
-        content=bom_content,
-        media_type="text/csv; charset=utf-8",
+        content=content_bytes,
+        media_type="application/octet-stream",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename_encoded}',
-            "Access-Control-Expose-Headers": "Content-Disposition"
+            "Content-Type": "application/octet-stream",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+            "Cache-Control": "no-store",
         },
     )
 

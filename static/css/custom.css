@@ -453,40 +453,61 @@
     color: #818cf8;
 }
 
-/* Filter select */
-.filter-select {
+/* ─── Filter select pill wrapper (matches filter-chip look & feel) ─── */
+.filter-select-wrap {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    padding: 6px 12px;
-    padding-right: 32px;
+    border-radius: 999px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    background: rgba(30, 41, 59, 0.5);
+    transition: all 0.2s;
+    overflow: hidden;
+}
+
+.filter-select-wrap:hover,
+.filter-select-wrap:focus-within {
+    border-color: rgba(99, 102, 241, 0.45);
+    background: rgba(30, 41, 59, 0.75);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.filter-select-icon {
+    position: absolute;
+    left: 10px;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 1;
+    line-height: 1;
+}
+
+.filter-select-pill {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 6px 30px 6px 30px;
     border-radius: 999px;
     font-size: 13px;
     font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    background: rgba(30, 41, 59, 0.5);
     color: #94a3b8;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    /* Custom chevron */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
-    background-size: 14px;
-    outline: none;
+    background-size: 12px;
+    min-width: 110px;
+    transition: color 0.2s;
 }
 
-.filter-select:hover {
-    border-color: rgba(99, 102, 241, 0.4);
+.filter-select-pill:hover,
+.filter-select-wrap:hover .filter-select-pill {
     color: #e2e8f0;
-    background-color: rgba(30, 41, 59, 0.8);
 }
 
-.filter-select:focus {
-    border-color: rgba(99, 102, 241, 0.6);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-.filter-select option {
+.filter-select-pill option {
     background: #0f172a;
     color: #e2e8f0;
 }
@@ -521,4 +542,140 @@ body::before {
         radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.04) 0%, transparent 50%);
     pointer-events: none;
     z-index: -1;
+}
+
+/* ============================================
+   SERVICE OPPORTUNITY BADGES
+   ============================================ */
+.service-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+.service-badge.svc-web {
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    color: #a5b4fc;
+}
+
+.service-badge.svc-software {
+    background: rgba(139, 92, 246, 0.2);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    color: #c4b5fd;
+}
+
+.service-badge.svc-mobile {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+}
+
+.service-badge.svc-shopify {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+}
+
+.service-badge.svc-seo {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fcd34d;
+}
+
+.service-badge.svc-marketing {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.service-badge.svc-uiux {
+    background: rgba(236, 72, 153, 0.2);
+    border: 1px solid rgba(236, 72, 153, 0.4);
+    color: #f9a8d4;
+}
+
+.service-badge.svc-graphic {
+    background: rgba(249, 115, 22, 0.2);
+    border: 1px solid rgba(249, 115, 22, 0.4);
+    color: #fdba74;
+}
+
+.service-badge.svc-photo {
+    background: rgba(20, 184, 166, 0.2);
+    border: 1px solid rgba(20, 184, 166, 0.4);
+    color: #5eead4;
+}
+
+.service-badge.svc-video {
+    background: rgba(168, 85, 247, 0.2);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    color: #d8b4fe;
+}
+
+.service-badge.svc-maintain {
+    background: rgba(107, 114, 128, 0.2);
+    border: 1px solid rgba(107, 114, 128, 0.4);
+    color: #d1d5db;
+}
+
+/* Confidence bar */
+.confidence-bar-wrap {
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 999px;
+    height: 6px;
+    overflow: hidden;
+}
+
+.confidence-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.confidence-bar-fill.high {
+    background: linear-gradient(90deg, #10b981, #06b6d4);
+}
+
+.confidence-bar-fill.medium {
+    background: linear-gradient(90deg, #f59e0b, #f97316);
+}
+
+.confidence-bar-fill.low {
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+}
+
+/* Service panel in modal */
+.service-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    transition: border-color 0.2s;
+}
+
+.service-item:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.service-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.service-item-reason {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.5;
 }

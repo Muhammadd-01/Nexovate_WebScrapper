@@ -16,6 +16,8 @@ let activeFilters = {
     max_performance: 100,
     city: '',
     niche: '',
+    service: '',
+    high_confidence: false,
 };
 let isSearching = false;
 
@@ -26,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadExistingData();
     setupEventListeners();
     loadSuggestions();
+    loadServiceOptions();
 });
 
 function setupEventListeners() {
@@ -66,6 +69,15 @@ function setupEventListeners() {
     if (nicheFilter) {
         nicheFilter.addEventListener('change', (e) => {
             activeFilters.niche = e.target.value;
+            applyFilters();
+        });
+    }
+
+    // Service filter
+    const serviceFilter = document.getElementById('serviceFilter');
+    if (serviceFilter) {
+        serviceFilter.addEventListener('change', (e) => {
+            activeFilters.service = e.target.value;
             applyFilters();
         });
     }
@@ -251,28 +263,112 @@ async function loadSuggestions() {
         updateDatalist('countriesList', data.countries);
         updateDatalist('keywordsList', data.keywords);
 
-        // Also update the select dropdowns in the filter bar
-        const cityFilter = document.getElementById('cityFilter');
-        const nicheFilter = document.getElementById('nicheFilter');
+        // Update Dynamic Filter Chips for City and Niche
+        const cityChipsContainer = document.getElementById('cityChips');
+        const nicheChipsContainer = document.getElementById('nicheChips');
 
-        if (cityFilter) {
-            const current = cityFilter.value;
-            cityFilter.innerHTML = '<option value="">All Cities</option>' +
-                data.cities.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-            cityFilter.value = current;
-        }
+        const renderDynamicChips = (container, items, filterKey) => {
+            if (!container) return;
+            // First chip is "All"
+            let html = `<button class="filter-chip ${!activeFilters[filterKey] ? 'active' : ''}" data-dyn-filter="${filterKey}" data-val="">All</button>`;
 
-        if (nicheFilter) {
-            const current = nicheFilter.value;
-            nicheFilter.innerHTML = '<option value="">All Niches</option>' +
-                data.keywords.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-            nicheFilter.value = current;
-        }
+            items.forEach(item => {
+                const isActive = activeFilters[filterKey] === item;
+                html += `<button class="filter-chip ${isActive ? 'active' : ''}" data-dyn-filter="${filterKey}" data-val="${escapeHtml(item)}">${escapeHtml(item)}</button>`;
+            });
+            container.innerHTML = html;
+
+            // Attach listeners to these new chips
+            container.querySelectorAll('.filter-chip').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const key = btn.getAttribute('data-dyn-filter');
+                    const val = btn.getAttribute('data-val');
+
+                    // Update state
+                    activeFilters[key] = val;
+
+                    // Update UI visually within this container only
+                    container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    applyFilters();
+                });
+            });
+        };
+
+        renderDynamicChips(cityChipsContainer, data.cities, 'city');
+        renderDynamicChips(nicheChipsContainer, data.keywords, 'niche');
 
     } catch (err) {
         console.warn('Failed to load suggestions:', err);
     }
 }
+
+// ============================================
+// SERVICE OPTIONS LOADER
+// ============================================
+async function loadServiceOptions() {
+    try {
+        const resp = await fetch('/api/services');
+        const data = await resp.json();
+        const services = data.services || [];
+
+        const serviceChipsContainer = document.getElementById('serviceChips');
+        if (!serviceChipsContainer) return;
+
+        let html = `<button class="filter-chip ${!activeFilters.service ? 'active' : ''}" data-dyn-filter="service" data-val="">All</button>`;
+
+        services.forEach(s => {
+            const isActive = activeFilters.service === s;
+            html += `<button class="filter-chip ${isActive ? 'active' : ''}" data-dyn-filter="service" data-val="${escapeHtml(s)}">${escapeHtml(s)}</button>`;
+        });
+        serviceChipsContainer.innerHTML = html;
+
+        serviceChipsContainer.querySelectorAll('.filter-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-val');
+                activeFilters.service = val;
+
+                serviceChipsContainer.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+
+                applyFilters();
+            });
+        });
+    } catch (err) {
+        console.warn('Failed to load services:', err);
+    }
+}
+
+// ============================================
+// SERVICE BADGE RENDERER
+// ============================================
+const SERVICE_CSS_MAP = {
+    'Full-Stack Web Development': 'svc-web',
+    'Software Development': 'svc-software',
+    'Mobile App Development': 'svc-mobile',
+    'Shopify Store Development': 'svc-shopify',
+    'SEO Services': 'svc-seo',
+    'Digital Marketing': 'svc-marketing',
+    'UI/UX Design': 'svc-uiux',
+    'Graphic & Vector Design': 'svc-graphic',
+    'Photo Editing': 'svc-photo',
+    'Video Editing': 'svc-video',
+    'Website Maintenance & Support': 'svc-maintain',
+};
+
+function renderServiceBadge(serviceName) {
+    if (!serviceName) return '<span class="text-slate-600 text-xs">—</span>';
+    const cssClass = SERVICE_CSS_MAP[serviceName] || 'svc-web';
+    return `<span class="service-badge ${cssClass}">${escapeHtml(serviceName)}</span>`;
+}
+
+function getConfidenceClass(score) {
+    if (score >= 70) return 'high';
+    if (score >= 40) return 'medium';
+    return 'low';
+}
+
 
 async function loadExistingData() {
     try {
@@ -398,6 +494,7 @@ function renderTable() {
             <td class="px-4 py-3">${renderSocialIcons(biz.socials)}</td>
             <td class="px-4 py-3 text-center">${renderScoreBadge(biz.performance_score, true)}</td>
             <td class="px-4 py-3 text-center">${renderScoreBadge(biz.opportunity_score, false)}</td>
+            <td class="px-4 py-3">${renderServiceBadge(biz.primary_pitch)}</td>
         </tr>
     `).join('');
 }
@@ -488,6 +585,9 @@ function toggleFilter(chip) {
         case 'high_opp':
             activeFilters.min_opportunity = chip.classList.contains('active') ? 60 : 0;
             break;
+        case 'high_confidence':
+            activeFilters.high_confidence = chip.classList.contains('active');
+            break;
     }
 
     // Deactivate conflicting filters
@@ -503,19 +603,32 @@ function toggleFilter(chip) {
     applyFilters();
 }
 
+// ============================================
+// FILTERING
+// ============================================
 function applyFilters() {
     filteredBusinesses = allBusinesses.filter(biz => {
-        if (activeFilters.has_website === 'true' && !biz.has_website) return false;
-        if (activeFilters.has_website === 'false' && biz.has_website) return false;
-        if (activeFilters.has_email === 'true' && !biz.email) return false;
-        if (activeFilters.max_performance < 100 && biz.performance_score > activeFilters.max_performance) return false;
-        if (activeFilters.min_opportunity > 0 && biz.opportunity_score < activeFilters.min_opportunity) return false;
+        // Simple property filters (the original chips)
+        if (activeFilters.no_website && biz.has_website) return false;
+        if (activeFilters.has_website && !biz.has_website) return false;
+        if (activeFilters.has_email && !biz.email) return false;
+        if (activeFilters.poor_perf && biz.performance_score >= 50) return false;
+        if (activeFilters.high_opp && biz.opportunity_score < 60) return false;
 
-        // City Filter
-        if (activeFilters.city && biz.city !== activeFilters.city) return false;
+        // High confidence filter (the new chip)
+        const primaryServiceRank = biz.recommended_services?.[0];
+        if (activeFilters.high_confidence) {
+            if (!primaryServiceRank || primaryServiceRank.confidence_score < 75) return false;
+        }
 
-        // Niche Filter
-        if (activeFilters.niche && biz.keyword !== activeFilters.niche) return false;
+        // Dynamic chips filters (City, Niche, Service)
+        const cityFilterVal = activeFilters.city;
+        const nicheFilterVal = activeFilters.niche;
+        const serviceFilterVal = activeFilters.service;
+
+        if (cityFilterVal && biz.city !== cityFilterVal) return false;
+        if (nicheFilterVal && biz.keyword !== nicheFilterVal) return false;
+        if (serviceFilterVal && biz.primary_pitch !== serviceFilterVal) return false;
 
         return true;
     });
@@ -635,6 +748,39 @@ function openDetail(placeId) {
                 <h3 class="text-sm font-semibold text-amber-400 mb-3 uppercase tracking-wider">📊 Pitch Summary</h3>
                 <pre class="text-sm text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">${escapeHtml(biz.pitch_summary || 'No analysis available.')}</pre>
             </div>
+
+            <!-- Service Opportunity Breakdown -->
+            ${(() => {
+            const recs = biz.recommended_services || [];
+            if (recs.length === 0) return '';
+
+            const pitchSummary = biz.service_pitch_summary || '';
+            const serviceItems = recs.map(rec => {
+                const cls = getConfidenceClass(rec.confidence_score);
+                const badge = renderServiceBadge(rec.service);
+                return `
+                        <div class="service-item">
+                            <div class="service-item-header">
+                                ${badge}
+                                <span class="text-xs font-bold text-slate-300">${rec.confidence_score}/100</span>
+                            </div>
+                            <div class="confidence-bar-wrap">
+                                <div class="confidence-bar-fill ${cls}" style="width: ${rec.confidence_score}%"></div>
+                            </div>
+                            <div class="service-item-reason">${escapeHtml(rec.reason || '')}</div>
+                        </div>
+                    `;
+            }).join('');
+
+            return `
+                <div class="glass-card p-4">
+                    <h3 class="text-sm font-semibold text-indigo-400 mb-2 uppercase tracking-wider">🎯 Service Opportunities</h3>
+                    ${pitchSummary ? `<p class="text-xs text-slate-400 mb-4 leading-relaxed">${escapeHtml(pitchSummary)}</p>` : ''}
+                    <div class="grid grid-cols-1 gap-3">
+                        ${serviceItems}
+                    </div>
+                </div>`;
+        })()}
         </div>
     `;
 
