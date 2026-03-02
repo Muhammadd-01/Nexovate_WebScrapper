@@ -10,7 +10,8 @@ import io
 import logging
 from datetime import datetime
 from fastapi import APIRouter, Query, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, Response
+from urllib.parse import quote
 from bson import ObjectId
 from database import get_database
 from fpdf import FPDF
@@ -56,8 +57,35 @@ async def list_businesses(
 
         return {"businesses": businesses, "total": total}
     except Exception as e:
-        logger.warning(f"Failed to fetch businesses (MongoDB may not be configured): {e}")
+        logger.error(f"Failed to fetch businesses: {e}", exc_info=True)
         return {"businesses": [], "total": 0}
+
+
+@router.get("/suggestions")
+async def get_suggestions():
+    """Get unique cities, countries, and keywords from the database for autocomplete."""
+    try:
+        db = get_database()
+        collection = db.businesses
+        
+        # Using distinct to get unique values
+        cities = await collection.distinct("city")
+        countries = await collection.distinct("country")
+        keywords = await collection.distinct("keyword")
+        
+        # Filter out empty strings and None
+        cities = [c for c in cities if c]
+        countries = [c for c in countries if c]
+        keywords = [k for k in keywords if k]
+        
+        return {
+            "cities": sorted(cities),
+            "countries": sorted(countries),
+            "keywords": sorted(keywords)
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch suggestions: {e}")
+        return {"cities": [], "countries": [], "keywords": []}
 
 
 @router.get("/businesses/csv")
@@ -154,11 +182,18 @@ async def export_csv(
 
         writer.writerow(row)
 
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    # Get CSV content and add UTF-8 BOM for Excel/Windows compatibility
+    csv_content = output.getvalue()
+    bom_content = "\ufeff" + csv_content
+    
+    filename_encoded = quote(filename)
+    return Response(
+        content=bom_content,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename_encoded}',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        },
     )
 
 @router.get("/businesses/pdf")
@@ -185,17 +220,29 @@ async def export_pdf(
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     
+    def _pdf_safe(text: str) -> str:
+        """Sanitize text for FPDF (Latin-1) to avoid UnicodeEncodeErrors."""
+        if not text: return ""
+        # Convert to latin-1, replacing incompatible characters with '?'
+        return text.encode('latin-1', 'replace').decode('latin-1')
+    
     for biz in businesses:
         pdf.add_page()
+        
+        biz_name = _pdf_safe(biz.get("name", "Business Report"))
+        address = _pdf_safe(biz.get("address", ""))
+        pitch = _pdf_safe(biz.get("pitch_summary", "No pitch summary available."))
+        cms = _pdf_safe(biz.get("detected_cms", "Custom/Unknown"))
         
         # Header
         pdf.set_font("Helvetica", "B", 20)
         pdf.set_text_color(63, 81, 181) # Indigo
-        pdf.cell(0, 15, biz.get("name", "Business Report"), ln=True, align="C")
+        pdf.cell(0, 15, biz_name, ln=True, align="C")
         
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(100, 100, 100)
-        pdf.cell(0, 5, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align="C")
+        pdf.cell(0, 5, _pdf_safe(f"Address: {address}"), ln=True, align="C")
+        pdf.cell(0, 5, _pdf_safe(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}"), ln=True, align="C")
         pdf.ln(10)
         
         # Stats Overview
@@ -206,12 +253,12 @@ async def export_pdf(
         pdf.ln(2)
         
         pdf.set_font("Helvetica", "", 11)
-        pdf.cell(90, 8, f"Opportunity Score: {biz.get('opportunity_score', 0)}/100")
-        pdf.cell(90, 8, f"Website: {'Available' if biz.get('has_website') else 'Not Found'}", ln=True)
+        pdf.cell(90, 8, _pdf_safe(f"Opportunity Score: {biz.get('opportunity_score', 0)}/100"))
+        pdf.cell(90, 8, _pdf_safe(f"Website: {'Available' if biz.get('has_website') else 'Not Found'}"), ln=True)
         
         if biz.get('has_website'):
-            pdf.cell(90, 8, f"Performance Score: {biz.get('performance_score', 0)}/100")
-            pdf.cell(90, 8, f"Detected CMS: {biz.get('detected_cms', 'Custom/Unknown')}", ln=True)
+            pdf.cell(90, 8, _pdf_safe(f"Performance Score: {biz.get('performance_score', 0)}/100"))
+            pdf.cell(90, 8, _pdf_safe(f"Detected CMS: {cms}"), ln=True)
         pdf.ln(5)
         
         # Technical Audit
@@ -245,7 +292,7 @@ async def export_pdf(
         pdf.ln(2)
         pdf.set_font("Helvetica", "", 10)
         
-        pitch = biz.get("pitch_summary", "No pitch summary available.")
+        pitch = _pdf_safe(biz.get("pitch_summary", "No pitch summary available."))
         pdf.multi_cell(0, 6, pitch)
         
         # Footer
@@ -255,11 +302,18 @@ async def export_pdf(
         pdf.cell(0, 10, f"LeadIntel Global Lead Intelligence - Page {pdf.page_no()}", align="C")
 
     # Output to stream
-    pdf_bytes = pdf.output()
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
+    # Get PDF bytes and convert to bytes (Starlette Response needs bytes, not bytearray)
+    pdf_bytes = bytes(pdf.output())
+    filename = f"Health_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    
+    filename_encoded = quote(filename)
+    return Response(
+        content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=Health_Report_{datetime.now().strftime('%Y%m%d')}.pdf"},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename_encoded}',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        },
     )
 
 

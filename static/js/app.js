@@ -14,6 +14,8 @@ let activeFilters = {
     has_email: '',
     min_opportunity: 0,
     max_performance: 100,
+    city: '',
+    niche: '',
 };
 let isSearching = false;
 
@@ -23,6 +25,7 @@ let isSearching = false;
 document.addEventListener('DOMContentLoaded', () => {
     loadExistingData();
     setupEventListeners();
+    loadSuggestions();
 });
 
 function setupEventListeners() {
@@ -48,6 +51,50 @@ function setupEventListeners() {
 
     // Clear data
     document.getElementById('clearData').addEventListener('click', clearData);
+
+    // New select filters
+    const cityFilter = document.getElementById('cityFilter');
+    const nicheFilter = document.getElementById('nicheFilter');
+
+    if (cityFilter) {
+        cityFilter.addEventListener('change', (e) => {
+            activeFilters.city = e.target.value;
+            applyFilters();
+        });
+    }
+
+    if (nicheFilter) {
+        nicheFilter.addEventListener('change', (e) => {
+            activeFilters.niche = e.target.value;
+            applyFilters();
+        });
+    }
+
+    // Dropdown toggle
+    const leadListBtn = document.getElementById('leadListBtn');
+    const leadListMenu = document.getElementById('leadListMenu');
+
+    if (leadListBtn && leadListMenu) {
+        // Use a more robust toggle approach
+        leadListBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isHidden = leadListMenu.classList.contains('hidden');
+
+            // Close other menus if any, then toggle this one
+            leadListMenu.classList.toggle('hidden');
+            console.log('Dropdown toggled. Now hidden:', leadListMenu.classList.contains('hidden'));
+        };
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', (e) => {
+            if (leadListMenu && !leadListMenu.classList.contains('hidden')) {
+                if (!leadListBtn.contains(e.target) && !leadListMenu.contains(e.target)) {
+                    leadListMenu.classList.add('hidden');
+                }
+            }
+        });
+    }
 
     // Modal close
     document.getElementById('modalClose').addEventListener('click', closeModal);
@@ -189,6 +236,44 @@ function updateSearchUI(searching) {
 // ============================================
 // DATA LOADING
 // ============================================
+async function loadSuggestions() {
+    try {
+        const resp = await fetch('/api/suggestions');
+        const data = await resp.json();
+
+        const updateDatalist = (id, items) => {
+            const dl = document.getElementById(id);
+            if (!dl) return;
+            dl.innerHTML = items.map(item => `<option value="${escapeHtml(item)}">`).join('');
+        };
+
+        updateDatalist('citiesList', data.cities);
+        updateDatalist('countriesList', data.countries);
+        updateDatalist('keywordsList', data.keywords);
+
+        // Also update the select dropdowns in the filter bar
+        const cityFilter = document.getElementById('cityFilter');
+        const nicheFilter = document.getElementById('nicheFilter');
+
+        if (cityFilter) {
+            const current = cityFilter.value;
+            cityFilter.innerHTML = '<option value="">All Cities</option>' +
+                data.cities.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+            cityFilter.value = current;
+        }
+
+        if (nicheFilter) {
+            const current = nicheFilter.value;
+            nicheFilter.innerHTML = '<option value="">All Niches</option>' +
+                data.keywords.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+            nicheFilter.value = current;
+        }
+
+    } catch (err) {
+        console.warn('Failed to load suggestions:', err);
+    }
+}
+
 async function loadExistingData() {
     try {
         const params = new URLSearchParams();
@@ -425,6 +510,13 @@ function applyFilters() {
         if (activeFilters.has_email === 'true' && !biz.email) return false;
         if (activeFilters.max_performance < 100 && biz.performance_score > activeFilters.max_performance) return false;
         if (activeFilters.min_opportunity > 0 && biz.opportunity_score < activeFilters.min_opportunity) return false;
+
+        // City Filter
+        if (activeFilters.city && biz.city !== activeFilters.city) return false;
+
+        // Niche Filter
+        if (activeFilters.niche && biz.keyword !== activeFilters.niche) return false;
+
         return true;
     });
 
@@ -606,12 +698,20 @@ function exportSpecialized(format) {
     if (activeFilters.min_opportunity > 0) params.set('min_opportunity', activeFilters.min_opportunity);
     if (activeFilters.max_performance < 100) params.set('max_performance', activeFilters.max_performance);
 
-    if (format === 'health') {
-        window.location.href = '/api/businesses/pdf?' + params.toString();
-    } else {
-        params.set('format', format);
-        window.location.href = '/api/businesses/csv?' + params.toString();
-    }
+    const url = (format === 'health' ? '/api/businesses/pdf?' : '/api/businesses/csv?') + params.toString();
+
+    // Use a more robust download approach instead of window.location.href
+    // This helps ensure the browser respects the filename header
+    const filename = format === 'health'
+        ? `Health_Report_${new Date().toISOString().slice(0, 10)}.pdf`
+        : `${format}_leads_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename; // Hint for the browser
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 function exportAll() {

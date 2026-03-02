@@ -87,7 +87,9 @@ async def search_businesses(req: SearchRequest):
                 if biz.get("has_website") and biz.get("website"):
                     async with WEBSITE_SEMAPHORE:
                         try:
-                            biz = await _analyze_business(biz, settings.GOOGLE_API_KEY)
+                            # Update existing biz dict instead of replacing it
+                            analysis_results = await _analyze_business(biz["website"], settings.GOOGLE_API_KEY)
+                            biz.update(analysis_results)
                         except Exception as e:
                             logger.error(f"Error analyzing {biz['name']}: {e}")
                 
@@ -108,14 +110,18 @@ async def search_businesses(req: SearchRequest):
 
                 # Upsert into MongoDB
                 try:
-                    await collection.update_one(
+                    res = await collection.update_one(
                         {"place_id": biz["place_id"]},
                         {"$set": biz},
                         upsert=True,
                     )
-                    total_saved += 1
+                    if res.acknowledged:
+                        total_saved += 1
+                        logger.info(f"Successfully saved {biz['name']} to DB.")
+                    else:
+                        logger.error(f"Failed to save {biz['name']}: Not acknowledged")
                 except Exception as e:
-                    logger.error(f"MongoDB upsert error for {biz['name']}: {e}")
+                    logger.error(f"MongoDB upsert error for {biz['name']}: {e}", exc_info=True)
 
                 # Send progress ONLY after saving to DB so UI can see it
                 status_msg = f"Analyzing {i}/{total}: {biz['name']}"
@@ -155,10 +161,10 @@ async def search_businesses(req: SearchRequest):
     )
 
 
-async def _analyze_business(biz: dict, api_key: str = "") -> dict:
-    """Run full analysis on a single business with a website."""
-    website = biz["website"]
-
+async def _analyze_business(website: str, api_key: str = "") -> dict:
+    """Run full analysis on a single business with a website and return results dict."""
+    results = {}
+    
     # Run email, socials, and health analysis concurrently
     email_task = extract_email(website)
     social_task = extract_socials(website)
@@ -170,37 +176,33 @@ async def _analyze_business(biz: dict, api_key: str = "") -> dict:
     )
 
     # Handle results (may be exceptions)
-    if isinstance(email, str):
-        biz["email"] = email
-    else:
-        biz["email"] = ""
-        logger.warning(f"Email extraction failed for {website}: {email}")
-
-    if isinstance(socials, SocialLinks):
-        biz["socials"] = socials
-    else:
-        biz["socials"] = SocialLinks()
-        logger.warning(f"Social extraction failed for {website}: {socials}")
-
+    results["email"] = email if isinstance(email, str) else ""
+    results["socials"] = socials if isinstance(socials, SocialLinks) else SocialLinks()
+    
     if isinstance(health, HealthAnalysis):
-        biz["health"] = health
-        biz["load_time"] = health.response_time
-        biz["detected_cms"] = health.detected_cms
+        results["health"] = health
+        results["load_time"] = health.response_time
+        results["detected_cms"] = health.detected_cms
     else:
-        biz["health"] = HealthAnalysis()
-        logger.warning(f"Health analysis failed for {website}: {health}")
+        results["health"] = HealthAnalysis()
+        results["load_time"] = 0
+        results["detected_cms"] = "Unknown"
 
     # PageSpeed (separate call, may be slow)
     try:
         pagespeed = await fetch_pagespeed(website, api_key)
-        biz["performance_score"] = pagespeed["performance"]
-        biz["seo_score"] = pagespeed["seo"]
-        biz["accessibility_score"] = pagespeed["accessibility"]
-        biz["best_practices_score"] = pagespeed["best_practices"]
+        results["performance_score"] = pagespeed["performance"]
+        results["seo_score"] = pagespeed["seo"]
+        results["accessibility_score"] = pagespeed["accessibility"]
+        results["best_practices_score"] = pagespeed["best_practices"]
     except Exception as e:
         logger.warning(f"PageSpeed failed for {website}: {e}")
+        results["performance_score"] = 0
+        results["seo_score"] = 0
+        results["accessibility_score"] = 0
+        results["best_practices_score"] = 0
 
-    return biz
+    return results
 
 
 def _sse(data: dict) -> str:
