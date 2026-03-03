@@ -22,6 +22,8 @@ from services.pagespeed import fetch_pagespeed
 from services.scoring import calculate_opportunity_score
 from services.pitch_generator import generate_pitch
 from services.service_detector import detect_services
+from services.website_checker import check_website_active
+from services.lead_scorer import calculate_lead_score
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["search"])
@@ -46,6 +48,8 @@ async def search_businesses(req: SearchRequest):
 
         total_processed = 0
         total_saved = 0
+        total_skipped = 0
+        total_duplicates = 0
 
         try:
             # Step 1: Fetch businesses from OpenStreetMap
@@ -85,22 +89,61 @@ async def search_businesses(req: SearchRequest):
                 biz["city"] = city_clean
                 biz["country"] = country_clean
 
+                # ── Enhancement 2: Skip leads with no email AND no website ──
+                if not biz.get("email") and not biz.get("website"):
+                    total_skipped += 1
+                    yield _sse({
+                        "type": "progress",
+                        "message": f"Skipping {i}/{total}: {biz['name']} (no email/website)",
+                        "current": i,
+                        "total": total,
+                    })
+                    continue
+
+                # ── Enhancement 2: Duplicate check (email OR website already in DB) ──
+                dup_query = []
+                if biz.get("email"):
+                    dup_query.append({"email": biz["email"]})
+                if biz.get("website"):
+                    dup_query.append({"website": biz["website"]})
+
+                if dup_query:
+                    existing = await collection.find_one(
+                        {"$or": dup_query, "place_id": {"$ne": biz.get("place_id", "")}}
+                    )
+                    if existing:
+                        total_duplicates += 1
+                        yield _sse({
+                            "type": "progress",
+                            "message": f"Duplicate {i}/{total}: {biz['name']} (already exists)",
+                            "current": i,
+                            "total": total,
+                        })
+                        continue
+
+                # ── Enhancement 4: Website liveness check ──
                 if biz.get("has_website") and biz.get("website"):
                     async with WEBSITE_SEMAPHORE:
                         try:
-                            # Update existing biz dict instead of replacing it
+                            # Check if website is active
+                            biz["websiteActive"] = await check_website_active(biz["website"])
+
+                            # Full analysis (email, socials, health, pagespeed)
                             analysis_results = await _analyze_business(biz["website"], settings.GOOGLE_API_KEY)
                             biz.update(analysis_results)
                         except Exception as e:
                             logger.error(f"Error analyzing {biz['name']}: {e}")
-                
+                            biz["websiteActive"] = False
+                else:
+                    biz["websiteActive"] = False
+
                 # Calculate opportunity score
                 biz["opportunity_score"] = calculate_opportunity_score(biz)
 
                 # Generate pitch summary
                 biz["pitch_summary"] = generate_pitch(biz)
 
-                # Detect recommended services (NEW)
+                # Detect recommended services
                 try:
                     service_data = detect_services(biz)
                     biz.update(service_data)
@@ -109,6 +152,9 @@ async def search_businesses(req: SearchRequest):
                     biz.setdefault("recommended_services", [])
                     biz.setdefault("primary_pitch", "")
                     biz.setdefault("service_pitch_summary", "")
+
+                # ── Enhancement 5: Lead scoring ──
+                biz["leadScore"] = calculate_lead_score(biz)
 
                 # Set timestamp
                 biz["created_at"] = datetime.utcnow()
@@ -148,9 +194,16 @@ async def search_businesses(req: SearchRequest):
 
                 total_processed += 1
 
+                # ── Enhancement 1: Polite delay between analyses to prevent rate limiting ──
+                await asyncio.sleep(0.5)
+
             yield _sse({
                 "type": "complete",
-                "message": f"Analysis complete! Found {total} businesses, saved {total_saved}.",
+                "message": (
+                    f"Analysis complete! Found {total} businesses, "
+                    f"saved {total_saved}, skipped {total_skipped}, "
+                    f"duplicates {total_duplicates}."
+                ),
                 "count": total_saved,
             })
 
@@ -219,3 +272,4 @@ async def _analyze_business(website: str, api_key: str = "") -> dict:
 def _sse(data: dict) -> str:
     """Format a dict as an SSE data line."""
     return f"data: {json.dumps(data)}\n\n"
+

@@ -426,69 +426,80 @@
     border-radius: 12px;
 }
 
-/* Filter chip */
-.filter-chip {
-    display: inline-flex;
-    align-items: center;
+/* ─── Filter Grid Layout ─── */
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+@media (min-width: 1024px) {
+    .filter-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1280px) {
+    .filter-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ─── Filter Dropdown Card ─── */
+.filter-dropdown {
+    display: flex;
+    flex-direction: column;
     gap: 6px;
-    padding: 6px 14px;
-    border-radius: 999px;
+}
+
+.filter-dropdown-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.filter-dropdown-icon {
     font-size: 13px;
-    font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    background: rgba(30, 41, 59, 0.5);
-    color: #94a3b8;
+    line-height: 1;
 }
 
-.filter-chip:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #e2e8f0;
-}
-
-.filter-chip.active {
-    background: rgba(99, 102, 241, 0.2);
-    border-color: rgba(99, 102, 241, 0.5);
-    color: #818cf8;
-}
-
-/* ─── Filter select pill wrapper (matches filter-chip look & feel) ─── */
+/* ─── Filter select wrapper (glassmorphic) ─── */
 .filter-select-wrap {
     position: relative;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    border-radius: 999px;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    background: rgba(30, 41, 59, 0.5);
-    transition: all 0.2s;
+    border-radius: 10px;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    background: rgba(15, 23, 42, 0.6);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
 }
 
-.filter-select-wrap:hover,
-.filter-select-wrap:focus-within {
-    border-color: rgba(99, 102, 241, 0.45);
-    background: rgba(30, 41, 59, 0.75);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+.filter-select-wrap:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+    background: rgba(30, 41, 59, 0.8);
 }
 
-.filter-select-icon {
-    position: absolute;
-    left: 10px;
-    font-size: 13px;
-    pointer-events: none;
-    z-index: 1;
-    line-height: 1;
+.filter-select-wrap:focus-within {
+    border-color: rgba(99, 102, 241, 0.6);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    background: rgba(30, 41, 59, 0.9);
 }
 
 .filter-select-pill {
     appearance: none;
     -webkit-appearance: none;
-    padding: 6px 30px 6px 30px;
-    border-radius: 999px;
+    width: 100%;
+    padding: 9px 32px 9px 14px;
+    border-radius: 10px;
     font-size: 13px;
     font-weight: 500;
-    color: #94a3b8;
+    color: #cbd5e1;
     background: transparent;
     border: none;
     outline: none;
@@ -497,8 +508,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
-    background-size: 12px;
-    min-width: 110px;
+    background-size: 14px;
     transition: color 0.2s;
 }
 
@@ -507,10 +517,16 @@
     color: #e2e8f0;
 }
 
+.filter-select-pill:focus {
+    color: #f1f5f9;
+}
+
 .filter-select-pill option {
     background: #0f172a;
     color: #e2e8f0;
+    padding: 8px;
 }
+
 
 /* Loading spinner */
 .spinner {

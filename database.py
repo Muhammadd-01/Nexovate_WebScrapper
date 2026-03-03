@@ -33,25 +33,22 @@ def get_client() -> AsyncIOMotorClient:
         logger.info(f"*** DIAGNOSTIC: Your Public IP is {public_ip} ***")
         logger.info(f"*** Ensure {public_ip} is whitelisted in MongoDB Atlas Network Access (Search: 0.0.0.0/0 to allow all) ***")
 
-        # Simplified but robust SSL handling
-        # We try to use the URI as-is if it has parameters, or add the most compatible ones
-        if "mongodb+srv" in uri and "tls=" not in uri and "ssl=" not in uri:
-            separator = "&" if "?" in uri else "?"
-            uri += f"{separator}tls=true&tlsAllowInvalidCertificates=true"
-        
+        # Simplify SSL handling. Avoid injecting parameters into URI if we pass them via kwargs.
+        # Python 3.14/Windows often benefit from explicit certifi CA file and tls=True.
         client_kwargs = {
+            "tls": True,
             "tlsCAFile": ca if ca else None,
             "serverSelectionTimeoutMS": 10000,
             "connectTimeoutMS": 10000,
             "retryWrites": True,
-            "tlsAllowInvalidCertificates": True # Explicitly force this for Windows environment
+            "tlsAllowInvalidCertificates": True # Stay permissive for dev environment
         }
         
         # Filter out None values
         client_kwargs = {k: v for k, v in client_kwargs.items() if v is not None}
         
         _client = AsyncIOMotorClient(uri, **client_kwargs)
-        logger.info(f"MongoDB Client initialized (certifi: {bool(ca)})")
+        logger.info(f"MongoDB Client initialized (certifi: {bool(ca)}, tls: True)")
     return _client
 
 

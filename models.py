@@ -9,7 +9,7 @@ class SearchRequest(BaseModel):
     keyword: str
     city: str
     country: str
-    limit: int = Field(default=100, ge=1, le=200)
+    limit: int = Field(default=100, ge=1, le=500)
 
 
 class SocialLinks(BaseModel):
@@ -89,6 +89,10 @@ class BusinessDocument(BaseModel):
     keyword: str = ""
     city: str = ""
     country: str = ""
+    # New Enhancement Fields
+    niche: str = ""
+    websiteActive: bool = False
+    leadScore: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

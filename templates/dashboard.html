@@ -88,7 +88,7 @@
                         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                             Limit: <span id="limitValue" class="text-indigo-400 font-bold">100</span>
                         </label>
-                        <input type="range" id="limitSlider" min="10" max="200" value="100" step="10"
+                        <input type="range" id="limitSlider" min="10" max="500" value="100" step="10"
                             class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                     </div>
                     <div>
@@ -149,107 +149,202 @@
         </section>
 
         <!-- Filters & Actions Bar -->
-        <section class="glass-card p-4 mb-4 flex flex-wrap items-center justify-between gap-3 relative z-40">
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest self-center">Filters</span>
-
-                <div class="h-5 w-px bg-slate-700 mx-1 self-center"></div>
-
-                <!-- Existing filter chips -->
-                <button class="filter-chip" data-filter="no_website">🚫 No Website</button>
-                <button class="filter-chip" data-filter="has_website">🌐 Has Website</button>
-                <button class="filter-chip" data-filter="has_email">✉️ Has Email</button>
-                <button class="filter-chip" data-filter="poor_perf">🐌 Poor Perf</button>
-                <button class="filter-chip" data-filter="high_opp">🔥 High Opp</button>
-                <button class="filter-chip" data-filter="high_confidence">🎯 High Confidence</button>
-
-                <div class="h-5 w-px bg-slate-700 mx-1 self-center"></div>
-
-                <!-- Dynamic City Chips -->
-                <div class="flex items-center gap-2 max-w-[250px] overflow-x-auto no-scrollbar pb-1">
-                    <span class="text-xs text-slate-500 sticky left-0 bg-[#0f172a] pr-1 z-10">📍</span>
-                    <div id="cityChips" class="flex gap-2 whitespace-nowrap">
-                        <!-- Chips injected by JS -->
-                    </div>
+        <section class="glass-card p-5 mb-4 relative z-40 fade-in">
+            <!-- Row 1 — Filter Dropdowns -->
+            <div class="mb-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Filters</span>
                 </div>
-
-                <div class="h-5 w-px bg-slate-700 mx-1 self-center"></div>
-
-                <!-- Dynamic Niche Chips -->
-                <div class="flex items-center gap-2 max-w-[250px] overflow-x-auto no-scrollbar pb-1">
-                    <span class="text-xs text-slate-500 sticky left-0 bg-[#0f172a] pr-1 z-10">🏢</span>
-                    <div id="nicheChips" class="flex gap-2 whitespace-nowrap">
-                        <!-- Chips injected by JS -->
+                <div class="filter-grid">
+                    <!-- Website -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">🌐</span> Website
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterWebsite" class="filter-select-pill">
+                                <option value="">All</option>
+                                <option value="true">Has Website</option>
+                                <option value="false">No Website</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-
-                <div class="h-5 w-px bg-slate-700 mx-1 self-center"></div>
-
-                <!-- Dynamic Service Chips -->
-                <div class="flex items-center gap-2 max-w-[300px] overflow-x-auto no-scrollbar pb-1">
-                    <span class="text-xs text-slate-500 sticky left-0 bg-[#0f172a] pr-1 z-10">🛠️</span>
-                    <div id="serviceChips" class="flex gap-2 whitespace-nowrap">
-                        <!-- Chips injected by JS -->
+                    <!-- Email -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">✉️</span> Email
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterEmail" class="filter-select-pill">
+                                <option value="">All</option>
+                                <option value="true">Has Email</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Performance -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">⚡</span> Performance
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterPerformance" class="filter-select-pill">
+                                <option value="">All</option>
+                                <option value="poor">Poor (≤50)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Opportunity -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">🔥</span> Opportunity
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterOpportunity" class="filter-select-pill">
+                                <option value="">All</option>
+                                <option value="high">High (≥60)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Confidence -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">🎯</span> Confidence
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterConfidence" class="filter-select-pill">
+                                <option value="">All</option>
+                                <option value="high">High (≥75)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- City (dynamic) -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">📍</span> City
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterCity" class="filter-select-pill">
+                                <option value="">All Cities</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Niche (dynamic) -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">🏢</span> Niche
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterNiche" class="filter-select-pill">
+                                <option value="">All Niches</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Service (dynamic) -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">🛠️</span> Service
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterService" class="filter-select-pill">
+                                <option value="">All Services</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Social Media -->
+                    <div class="filter-dropdown">
+                        <label class="filter-dropdown-label">
+                            <span class="filter-dropdown-icon">📱</span> Social Media
+                        </label>
+                        <div class="filter-select-wrap">
+                            <select id="filterSocial" class="filter-select-pill">
+                                <option value="">All</option>
+                                <option value="any_social">Has Any Social</option>
+                                <option value="no_social">No Socials</option>
+                                <option value="instagram">Has Instagram</option>
+                                <option value="facebook">Has Facebook</option>
+                                <option value="linkedin">Has LinkedIn</option>
+                                <option value="twitter">Has Twitter / X</option>
+                                <option value="youtube">Has YouTube</option>
+                                <option value="tiktok">Has TikTok</option>
+                                <option value="has_phone">Has Phone (WhatsApp)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <!-- Specialized Exports -->
-                <div class="relative">
-                    <button id="leadListBtn"
-                        class="btn-secondary text-sm py-2 px-4 flex items-center gap-2 bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20">
+
+            <!-- Divider -->
+            <div class="w-full h-px bg-slate-700/50 mb-4"></div>
+
+            <!-- Row 2 — Actions -->
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Actions</span>
+                <div class="flex flex-wrap gap-2">
+                    <!-- Specialized Exports -->
+                    <div class="relative">
+                        <button id="leadListBtn"
+                            class="btn-secondary text-sm py-2 px-4 flex items-center gap-2 bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            Get Lead Lists
+                            <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div id="leadListMenu"
+                            class="absolute right-0 mt-2 w-48 glass-card border-slate-700 shadow-2xl hidden z-[100] overflow-hidden">
+                            <button onclick="exportSpecialized('email')"
+                                class="w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
+                                <span>✉️</span> Email Leads
+                            </button>
+                            <button onclick="exportSpecialized('whatsapp')"
+                                class="w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
+                                <span>💬</span> WhatsApp Leads
+                            </button>
+                            <button onclick="exportSpecialized('instagram')"
+                                class="w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
+                                <span>📸</span> Instagram Leads
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="exportHealth"
+                        class="btn-secondary text-sm py-2 px-4 flex items-center gap-2 bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Get Lead Lists
-                        <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+                        Health Audit
                     </button>
-                    <div id="leadListMenu"
-                        class="absolute right-0 mt-2 w-48 glass-card border-slate-700 shadow-2xl hidden z-[100] overflow-hidden">
-                        <button onclick="exportSpecialized('email')"
-                            class="w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
-                            <span>✉️</span> Email Leads
-                        </button>
-                        <button onclick="exportSpecialized('whatsapp')"
-                            class="w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
-                            <span>💬</span> WhatsApp Leads
-                        </button>
-                        <button onclick="exportSpecialized('instagram')"
-                            class="w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
-                            <span>📸</span> Instagram Leads
-                        </button>
-                    </div>
+
+                    <div class="h-8 w-px bg-slate-800 mx-1 hidden sm:block"></div>
+
+                    <button id="exportAll" class="btn-secondary text-sm py-2 px-4 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Full CSV
+                    </button>
+                    <button id="clearData"
+                        class="btn-secondary text-sm py-2 px-4 text-red-400 hover:text-red-300 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Clear
+                    </button>
                 </div>
-
-                <button id="exportHealth"
-                    class="btn-secondary text-sm py-2 px-4 flex items-center gap-2 bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Health Audit
-                </button>
-
-                <div class="h-8 w-px bg-slate-800 mx-1 hidden sm:block"></div>
-
-                <button id="exportAll" class="btn-secondary text-sm py-2 px-4 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Full CSV
-                </button>
-                <button id="clearData"
-                    class="btn-secondary text-sm py-2 px-4 text-red-400 hover:text-red-300 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Clear
-                </button>
             </div>
         </section>
 
@@ -285,6 +380,10 @@
                             <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-center"
                                 data-sort="opportunity_score" onclick="sortTable('opportunity_score')">
                                 Opp <span class="sort-indicator text-indigo-400"></span>
+                            </th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-center"
+                                data-sort="leadScore" onclick="sortTable('leadScore')">
+                                Lead <span class="sort-indicator text-indigo-400"></span>
                             </th>
                             <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                 🎯 Top Service

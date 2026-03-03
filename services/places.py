@@ -125,6 +125,9 @@ async def fetch_businesses(
     query = _build_query(keyword, bbox, limit)
     logger.info(f"Overpass query built, fetching data...")
 
+    # Polite delay between Nominatim and Overpass to prevent rate limiting
+    await asyncio.sleep(0.7)
+
     if progress_callback:
         await progress_callback(f"Querying OpenStreetMap for '{keyword}' in {city}...")
 
@@ -246,7 +249,7 @@ def _build_query(keyword: str, bbox: tuple, limit: int) -> str:
     keyword_escaped = keyword.replace("\\", "\\\\").replace('"', '\\"')
 
     # Fetch extra to allow for unnamed entries being filtered out
-    fetch_limit = min(limit + 100, 500)
+    fetch_limit = min(limit + 100, 700)
 
     # Build union of tag-based and name-based queries
     parts = []
@@ -334,6 +337,15 @@ def _parse_element(
         "latitude": lat,
         "longitude": lon,
         "email": tags.get("email", "") or tags.get("contact:email", ""),
+        # Niche: extract from OSM tags (amenity, shop, office, leisure, craft, tourism)
+        "niche": (
+            tags.get("amenity", "")
+            or tags.get("shop", "")
+            or tags.get("office", "")
+            or tags.get("leisure", "")
+            or tags.get("craft", "")
+            or tags.get("tourism", "")
+        ),
         # Default scores to prevent 'undefined' in UI
         "performance_score": 0,
         "seo_score": 0,

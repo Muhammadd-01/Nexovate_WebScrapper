@@ -18,6 +18,7 @@ let activeFilters = {
     niche: '',
     service: '',
     high_confidence: false,
+    social: '',
 };
 let isSearching = false;
 
@@ -43,9 +44,15 @@ function setupEventListeners() {
         limitValue.textContent = e.target.value;
     });
 
-    // Filter chips
-    document.querySelectorAll('.filter-chip').forEach(chip => {
-        chip.addEventListener('click', () => toggleFilter(chip));
+    // ── Dropdown Filter Listeners ──
+    const filterIds = [
+        'filterWebsite', 'filterEmail', 'filterPerformance',
+        'filterOpportunity', 'filterConfidence',
+        'filterCity', 'filterNiche', 'filterService', 'filterSocial'
+    ];
+    filterIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', syncDropdownFilters);
     });
 
     // Export buttons
@@ -55,50 +62,17 @@ function setupEventListeners() {
     // Clear data
     document.getElementById('clearData').addEventListener('click', clearData);
 
-    // New select filters
-    const cityFilter = document.getElementById('cityFilter');
-    const nicheFilter = document.getElementById('nicheFilter');
-
-    if (cityFilter) {
-        cityFilter.addEventListener('change', (e) => {
-            activeFilters.city = e.target.value;
-            applyFilters();
-        });
-    }
-
-    if (nicheFilter) {
-        nicheFilter.addEventListener('change', (e) => {
-            activeFilters.niche = e.target.value;
-            applyFilters();
-        });
-    }
-
-    // Service filter
-    const serviceFilter = document.getElementById('serviceFilter');
-    if (serviceFilter) {
-        serviceFilter.addEventListener('change', (e) => {
-            activeFilters.service = e.target.value;
-            applyFilters();
-        });
-    }
-
-    // Dropdown toggle
+    // Lead List dropdown toggle
     const leadListBtn = document.getElementById('leadListBtn');
     const leadListMenu = document.getElementById('leadListMenu');
 
     if (leadListBtn && leadListMenu) {
-        // Use a more robust toggle approach
         leadListBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const isHidden = leadListMenu.classList.contains('hidden');
-
-            // Close other menus if any, then toggle this one
             leadListMenu.classList.toggle('hidden');
-            console.log('Dropdown toggled. Now hidden:', leadListMenu.classList.contains('hidden'));
         };
 
-        // Close dropdown when clicking outside
         window.addEventListener('click', (e) => {
             if (leadListMenu && !leadListMenu.classList.contains('hidden')) {
                 if (!leadListBtn.contains(e.target) && !leadListMenu.contains(e.target)) {
@@ -118,6 +92,43 @@ function setupEventListeners() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeModal();
     });
+}
+
+// ============================================
+// SYNC DROPDOWN FILTERS → activeFilters state
+// ============================================
+function syncDropdownFilters() {
+    const web = document.getElementById('filterWebsite')?.value || '';
+    if (web === 'true') {
+        activeFilters.has_website = 'true';
+        activeFilters.no_website = false;
+    } else if (web === 'false') {
+        activeFilters.has_website = '';
+        activeFilters.no_website = true;
+    } else {
+        activeFilters.has_website = '';
+        activeFilters.no_website = false;
+    }
+
+    activeFilters.has_email = document.getElementById('filterEmail')?.value || '';
+
+    const perf = document.getElementById('filterPerformance')?.value || '';
+    activeFilters.max_performance = perf === 'poor' ? 50 : 100;
+    activeFilters.poor_perf = perf === 'poor';
+
+    const opp = document.getElementById('filterOpportunity')?.value || '';
+    activeFilters.min_opportunity = opp === 'high' ? 60 : 0;
+    activeFilters.high_opp = opp === 'high';
+
+    const conf = document.getElementById('filterConfidence')?.value || '';
+    activeFilters.high_confidence = conf === 'high';
+
+    activeFilters.city = document.getElementById('filterCity')?.value || '';
+    activeFilters.niche = document.getElementById('filterNiche')?.value || '';
+    activeFilters.service = document.getElementById('filterService')?.value || '';
+    activeFilters.social = document.getElementById('filterSocial')?.value || '';
+
+    applyFilters();
 }
 
 // ============================================
@@ -253,51 +264,29 @@ async function loadSuggestions() {
         const resp = await fetch('/api/suggestions');
         const data = await resp.json();
 
+        // Update search datalists
         const updateDatalist = (id, items) => {
             const dl = document.getElementById(id);
             if (!dl) return;
             dl.innerHTML = items.map(item => `<option value="${escapeHtml(item)}">`).join('');
         };
-
         updateDatalist('citiesList', data.cities);
         updateDatalist('countriesList', data.countries);
         updateDatalist('keywordsList', data.keywords);
 
-        // Update Dynamic Filter Chips for City and Niche
-        const cityChipsContainer = document.getElementById('cityChips');
-        const nicheChipsContainer = document.getElementById('nicheChips');
+        // Populate City dropdown
+        const citySelect = document.getElementById('filterCity');
+        if (citySelect) {
+            citySelect.innerHTML = '<option value="">All Cities</option>' +
+                data.cities.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        }
 
-        const renderDynamicChips = (container, items, filterKey) => {
-            if (!container) return;
-            // First chip is "All"
-            let html = `<button class="filter-chip ${!activeFilters[filterKey] ? 'active' : ''}" data-dyn-filter="${filterKey}" data-val="">All</button>`;
-
-            items.forEach(item => {
-                const isActive = activeFilters[filterKey] === item;
-                html += `<button class="filter-chip ${isActive ? 'active' : ''}" data-dyn-filter="${filterKey}" data-val="${escapeHtml(item)}">${escapeHtml(item)}</button>`;
-            });
-            container.innerHTML = html;
-
-            // Attach listeners to these new chips
-            container.querySelectorAll('.filter-chip').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const key = btn.getAttribute('data-dyn-filter');
-                    const val = btn.getAttribute('data-val');
-
-                    // Update state
-                    activeFilters[key] = val;
-
-                    // Update UI visually within this container only
-                    container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-                    btn.classList.add('active');
-
-                    applyFilters();
-                });
-            });
-        };
-
-        renderDynamicChips(cityChipsContainer, data.cities, 'city');
-        renderDynamicChips(nicheChipsContainer, data.keywords, 'niche');
+        // Populate Niche dropdown
+        const nicheSelect = document.getElementById('filterNiche');
+        if (nicheSelect) {
+            nicheSelect.innerHTML = '<option value="">All Niches</option>' +
+                data.keywords.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+        }
 
     } catch (err) {
         console.warn('Failed to load suggestions:', err);
@@ -313,28 +302,11 @@ async function loadServiceOptions() {
         const data = await resp.json();
         const services = data.services || [];
 
-        const serviceChipsContainer = document.getElementById('serviceChips');
-        if (!serviceChipsContainer) return;
+        const serviceSelect = document.getElementById('filterService');
+        if (!serviceSelect) return;
 
-        let html = `<button class="filter-chip ${!activeFilters.service ? 'active' : ''}" data-dyn-filter="service" data-val="">All</button>`;
-
-        services.forEach(s => {
-            const isActive = activeFilters.service === s;
-            html += `<button class="filter-chip ${isActive ? 'active' : ''}" data-dyn-filter="service" data-val="${escapeHtml(s)}">${escapeHtml(s)}</button>`;
-        });
-        serviceChipsContainer.innerHTML = html;
-
-        serviceChipsContainer.querySelectorAll('.filter-chip').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const val = btn.getAttribute('data-val');
-                activeFilters.service = val;
-
-                serviceChipsContainer.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-                btn.classList.add('active');
-
-                applyFilters();
-            });
-        });
+        serviceSelect.innerHTML = '<option value="">All Services</option>' +
+            services.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     } catch (err) {
         console.warn('Failed to load services:', err);
     }
@@ -481,7 +453,8 @@ function renderTable() {
                 ${biz.website
             ? `<a href="${escapeHtml(biz.website)}" target="_blank" class="text-indigo-400 hover:text-indigo-300 truncate block max-w-[150px]" title="${escapeHtml(biz.website)}" onclick="event.stopPropagation()">
                         ${truncateUrl(biz.website)}
-                       </a>`
+                       </a>
+                       <span class="text-xs ${biz.websiteActive ? 'text-emerald-400' : 'text-red-400'}">${biz.websiteActive ? '✅ Active' : '❌ Down'}</span>`
             : '<span class="text-red-400 text-xs font-medium">No Website</span>'
         }
             </td>
@@ -494,6 +467,7 @@ function renderTable() {
             <td class="px-4 py-3">${renderSocialIcons(biz.socials)}</td>
             <td class="px-4 py-3 text-center">${renderScoreBadge(biz.performance_score, true)}</td>
             <td class="px-4 py-3 text-center">${renderScoreBadge(biz.opportunity_score, false)}</td>
+            <td class="px-4 py-3 text-center">${renderLeadScoreBadge(biz.leadScore || 0)}</td>
             <td class="px-4 py-3">${renderServiceBadge(biz.primary_pitch)}</td>
         </tr>
     `).join('');
@@ -539,6 +513,15 @@ function renderScoreBadge(score, isPerformance) {
     return `<span class="inline-flex items-center justify-center w-10 h-7 rounded-md text-xs font-bold ${cls}">${s}</span>`;
 }
 
+function renderLeadScoreBadge(score) {
+    const s = parseInt(score) || 0;
+    let cls;
+    if (s >= 70) cls = 'score-high';
+    else if (s >= 40) cls = 'score-medium';
+    else cls = 'score-low';
+    return `<span class="inline-flex items-center justify-center w-10 h-7 rounded-md text-xs font-bold ${cls}">${s}</span>`;
+}
+
 // ============================================
 // SORTING
 // ============================================
@@ -561,47 +544,8 @@ function sortTable(field) {
 }
 
 // ============================================
-// FILTERS
+// FILTERS (dropdown-based, no more chips)
 // ============================================
-function toggleFilter(chip) {
-    const filter = chip.dataset.filter;
-    const value = chip.dataset.value;
-
-    chip.classList.toggle('active');
-
-    switch (filter) {
-        case 'no_website':
-            activeFilters.has_website = chip.classList.contains('active') ? 'false' : '';
-            break;
-        case 'has_website':
-            activeFilters.has_website = chip.classList.contains('active') ? 'true' : '';
-            break;
-        case 'has_email':
-            activeFilters.has_email = chip.classList.contains('active') ? 'true' : '';
-            break;
-        case 'poor_perf':
-            activeFilters.max_performance = chip.classList.contains('active') ? 50 : 100;
-            break;
-        case 'high_opp':
-            activeFilters.min_opportunity = chip.classList.contains('active') ? 60 : 0;
-            break;
-        case 'high_confidence':
-            activeFilters.high_confidence = chip.classList.contains('active');
-            break;
-    }
-
-    // Deactivate conflicting filters
-    if (filter === 'no_website' && chip.classList.contains('active')) {
-        const hasWebChip = document.querySelector('[data-filter="has_website"]');
-        if (hasWebChip) { hasWebChip.classList.remove('active'); }
-    }
-    if (filter === 'has_website' && chip.classList.contains('active')) {
-        const noWebChip = document.querySelector('[data-filter="no_website"]');
-        if (noWebChip) { noWebChip.classList.remove('active'); }
-    }
-
-    applyFilters();
-}
 
 // ============================================
 // FILTERING
@@ -621,7 +565,7 @@ function applyFilters() {
             if (!primaryServiceRank || primaryServiceRank.confidence_score < 75) return false;
         }
 
-        // Dynamic chips filters (City, Niche, Service)
+        // Dynamic dropdown filters (City, Niche, Service)
         const cityFilterVal = activeFilters.city;
         const nicheFilterVal = activeFilters.niche;
         const serviceFilterVal = activeFilters.service;
@@ -629,6 +573,22 @@ function applyFilters() {
         if (cityFilterVal && biz.city !== cityFilterVal) return false;
         if (nicheFilterVal && biz.keyword !== nicheFilterVal) return false;
         if (serviceFilterVal && biz.primary_pitch !== serviceFilterVal) return false;
+
+        // Social media filter
+        const socialVal = activeFilters.social;
+        if (socialVal) {
+            const s = biz.socials || {};
+            const hasSocial = s.instagram || s.facebook || s.linkedin || s.twitter || s.youtube || s.tiktok || s.pinterest || s.threads;
+            if (socialVal === 'any_social' && !hasSocial) return false;
+            if (socialVal === 'no_social' && hasSocial) return false;
+            if (socialVal === 'instagram' && !s.instagram) return false;
+            if (socialVal === 'facebook' && !s.facebook) return false;
+            if (socialVal === 'linkedin' && !s.linkedin) return false;
+            if (socialVal === 'twitter' && !s.twitter) return false;
+            if (socialVal === 'youtube' && !s.youtube) return false;
+            if (socialVal === 'tiktok' && !s.tiktok) return false;
+            if (socialVal === 'has_phone' && !biz.phone) return false;
+        }
 
         return true;
     });
